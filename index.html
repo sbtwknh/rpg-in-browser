@@ -1,0 +1,494 @@
+<!DOCTYPE html><script src="zip.js"></script><script src="notzip.js"></script><style>
+button.vn {
+ margin: 0;
+ padding: 0 0.5em;
+ border: none;
+ background: none;
+}
+#debug.vx {
+ border: solid 2px black;
+ color: #f44336;
+}
+</style><body><button type=button>+</button><table></table><ul id=debug></ul><script>"use strict";
+window.addEventListener('error',e=>{
+ const li=document.createElement('li');
+ const p0=document.createElement('div');
+ const p1=document.createElement('div');
+ const p2=document.createElement('pre');
+ li.appendChild(p0);
+ li.appendChild(p1);
+ li.appendChild(p2);
+ p0.innerText=e.message;
+ p1.innerText=`${e.filename}:${e.lineno}:${e.colno}`;
+ p2.innerText=e.error.stack;
+ document.getElementById('debug').appendChild(li);
+ document.getElementById('debug').classList.add('vx');
+});
+
+window.addEventListener('unhandledrejection',e=>{
+ const li=document.createElement('li');
+ const p0=document.createElement('div');
+ li.appendChild(p0);
+ p0.innerText=`Uncaught in Promise: ${e.reason}`;
+ document.getElementById('debug').appendChild(li);
+ document.getElementById('debug').classList.add('vx');
+});
+</script><script>"use strict";
+(function checkBrowser() {
+ (class{#a=null;})
+ indexedDB;
+ //window?.window;
+ Function.prototype.toString.call(IDBTransaction.prototype.commit);
+ Function.prototype.toString.call(Blob.prototype.arrayBuffer);
+ DecompressionStream;
+ Function.prototype.toString.call(Blob.prototype.stream);
+ Function.prototype.toString.call(Blob.prototype.text);
+ //onunhandledrejection;
+ Function.prototype.toString.call(navigator.serviceWorker.register);
+ caches;
+ Function.prototype.toString.call(CacheStorage.prototype.match);
+ new Response(new ReadableStream());
+ new Response(null);
+ Function.prototype.toString.call(ReadableStream.prototype.pipeThrough);
+})();
+</script><script>(function(){"use strict";
+
+const DB_NAME=location.href.slice(0,location.href.lastIndexOf("/")).replace(/:/g,"_")+":0";
+
+function dbReq(r) {return new Promise((rs,rj)=>{
+ r.onsuccess=()=>rs(r.result);
+ r.onerror=()=>rj(r.error);
+})}
+
+function openDB(n) {return new Promise((rs,rj)=>{
+ const r=indexedDB.open(n);
+ r.onupgradeneeded=e=>{r.transaction.abort();rj(e.type)}
+ r.onsuccess=()=>rs(r.result);
+ r.onerror=()=>rj(r.error);
+})}
+
+function openDB2() {return new Promise((rs,rj)=>{
+ const open=indexedDB.open(DB_NAME);
+ open.onerror=e=>rj(open.error);
+ open.onsuccess=e=>{open.result.close();rs(void 0)};
+ open.onupgradeneeded=e=>{
+  const t=open.transaction;
+  open.result.close();
+  t.oncomplete=()=>{rs(void 0)};
+  t.onabort=e=>rj(e.type);
+  t.onerror=e=>rj(t.error);
+  t.db.createObjectStore("a",{keyPath:"i",autoIncrement:true}).createIndex("n","n",{unique:true});
+  t.db.createObjectStore("b",{keyPath:"i",autoIncrement:true}).createIndex("a","a");
+  const x=t.db.createObjectStore("d",{keyPath:"i",autoIncrement:true});
+  x.createIndex("a","a");
+  x.createIndex("p",["p","n"],{unique:true});
+  t.db.createObjectStore("f",{keyPath:"i",autoIncrement:true}).createIndex("a","a");
+  t.db.createObjectStore("s",{keyPath:"a"});
+ };
+})}
+
+async function newApp(name,zipfile) {
+ async function openArchive(f) {
+  const x0=(window.AP||[]).map(x=>new x(f));
+  const x1=await Promise.any(x0.map(async (x)=>await x.mayOpen()?x:Promise.reject(x)));
+  const pw=await x1.getKI();
+  if (pw) await x1.setPW(prompt("Password required"));
+  const ff=await x1.getCD();
+  return {pw,ff}
+ }
+
+ function getFiles(ff) {
+  const root={i:0,x:new Map(),u:null,v:null,DEBUG:""};
+  const ds=[root];
+  const fs=[null];
+  for (const f of ff) {
+   let r=root;
+   for (const n of f.name.split('/').slice(0,-1)) {
+    if (!r.x.has(n)) {
+     const x={i:ds.length,n,x:new Map(),u:r.i,v:null,DEBUG:f.name};
+     ds.push(x);
+     r.x.set(n,x);
+    }
+    r=r.x.get(n);
+   }
+   const xx=r.x;
+   if (!f.name.endsWith('/')) {
+    const n=f.name.slice(f.name.lastIndexOf('/')+1);
+    if (xx.has(n)) {throw new Error('duplicate file name: '+n);}
+    const x={i:-fs.length,n,x:f,u:null,v:null,DEBUG:f.name};
+    fs.push(x);
+    xx.set(n,x);
+   }
+  }
+  let xx;
+  for (let r=root;;) {
+   if (r.x.size && r.x.has('index.html') && r.x.get('index.html').i<0) { xx=r; break; }
+   const x1=[...r.x.values()].filter(x=>x.i>=0);
+   if (x1.length!==1) { xx=r; break; }
+   r=x1[0];
+  }
+  return {ds,fs,rx:xx};
+ }
+
+ async function blob(s) {
+  const r=s.getReader();
+  const bs=[];
+  for (;;) {
+   const x=await r.read();
+   if (x.done) break;
+   bs.push(x.value);
+  }
+  return new Blob(bs);
+ }
+
+ async function checkRoot(zipfile,ds,rx) {
+  let xx=rx,xx1="";
+  while (xx.u!==null) {
+   xx1=(xx.n+"/")+xx1;
+   xx=ds[xx.u];
+  }
+  if (!rx.x.has("package.json"))
+   return "";
+  xx=rx.x.get("package.json");
+  if (xx.i>=0)
+   return "";
+  let bb=zipfile.slice(xx.x.o,xx.x.o+xx.x.s);
+  if (xx.x.m===1) {
+   bb=await blob(new Blob([Uint8Array.of(0x1f,0x8b,8,0,0,0,0,0,0,0),bb,Uint32Array.of(xx.x.crc32,xx.x.size)]).stream().pipeThrough(new DecompressionStream("gzip")));
+  }
+  try {
+   xx=JSON.parse(await bb.text())
+  } catch (e) {
+   return "";
+  }
+  // XXX
+  if (!xx.main.endsWith(".html") && !xx.main.endsWith(".htm") && !xx.main.endsWith(".xhtml"))
+   return ""
+  if (!rx.x.has(xx.main))
+   return ""
+  xx=rx.x.get(xx.main);
+  if (xx.i>=0)
+   return "";
+  if (xx.x.s>1048576)
+   return "";
+  bb=zipfile.slice(xx.x.o,xx.x.o+xx.x.s);
+  if (xx.x.m===1) {
+   bb=await blob(new Blob([Uint8Array.of(0x1f,0x8b,8,0,0,0,0,0,0,0),bb,Uint32Array.of(xx.x.crc32,xx.x.size)]).stream().pipeThrough(new DecompressionStream("gzip")));
+  }
+  bb=await bb.text()
+  if (!bb.startsWith("<!DOCTYPE") || bb.indexOf("\ufffd")>=0)
+   return "";
+  xx.x=bb.replace(/(?<=<head>)/,"<?=INJECT?>");
+  return xx1
+ }
+
+ function dbReq2(signal,r) {return new Promise((rs,rj)=>{
+  r.onsuccess=()=>rs(r.result);
+  r.onerror=()=>{signal(void 0);rj(r.error)}
+ })}
+
+ async function run(t,ds,rr,pw,ff,zipfile,signal) {
+
+  const root=ds[0];
+
+  const ta=t.objectStore("a");
+  const tb=t.objectStore("b");
+  const td=t.objectStore("d");
+  const tf=t.objectStore("f");
+
+  if (await dbReq2(signal,ta.index("n").getKey(name))) {
+   throw new Error('duplicate: '+name);
+  }
+
+  const appid=await dbReq2(signal,ta.add({n:name,r:null,p:rr,e:!!pw}));
+  const blobid=await dbReq2(signal,tb.add({a:appid,x:zipfile.slice(),e:pw,n:zipfile.name})); // XXX:
+  root.v=await dbReq2(signal,td.add({a:appid,p:null,n:null,x:null}));
+  await dbReq2(signal,ta.put({i:appid,n:name,s:"",r:root.v,p:rr,e:!!pw}))
+
+  async function insertToDB(parent,x) {
+   if (x.v!==null) return;
+   if (parent.v===null) await insertToDB(ds[parent.u],parent);
+   let fileid;
+   if (x.i<0) {
+    if (typeof x.x!=="string") {
+     if (!(x.x.m===1||x.x.m===0)) {
+      throw new Error('?');
+     }
+     if (!(x.x.e===1||x.x.e===0)) {
+      throw new Error('?');
+     }
+     fileid=await dbReq2(signal,tf.add({a:appid,b:blobid,o:x.x.o>>>0,s:x.x.s>>>0,c0:x.x.m?"deflate-raw":null,c1:x.x.size|0,c2:x.x.crc32|0,e0:x.x.e?"AES-GCM":null,e1:x.x.e1,e2:x.x.e2}));
+    } else {
+     fileid=await dbReq2(signal,tf.add({a:appid,b:x.x,o:null,s:null,c0:null,c1:null,c2:null,e0:null,e1:null,e2:null}));
+    }
+   } else {
+    fileid=null
+   }
+   const xxxx1=async (appid,parent,name,fileid)=>{
+    const r=await dbReq2(signal,td.add({a:appid,p:parent.v,n:name,x:fileid}));
+    return r
+   }
+   const xxxx0=async (appid,parent,name,fileid)=>{
+    const r=await xxxx1(appid,parent,name,fileid)
+    if (x.n.endsWith('.ogg')) {
+     const nn=x.n.slice(0,-3)+"m4a";
+     if (!parent.x.has(nn)) await xxxx1(appid,parent,nn,fileid);
+    } else if (x.n.endsWith('.m4a')) {
+     const nn=x.n.slice(0,-3)+"ogg";
+     if (!parent.x.has(nn)) await xxxx1(appid,parent,nn,fileid);
+    } else if (x.n.endsWith('.mp4')) {
+     const nn=x.n.slice(0,-3)+"webm";
+     if (!parent.x.has(nn)) await xxxx1(appid,parent,nn,fileid);
+    } else if (x.n.endsWith('.webm')) {
+     const nn=x.n.slice(0,-4)+"mp4";
+     if (!parent.x.has(nn)) await xxxx1(appid,parent,nn,fileid);
+    } else if (x.n.endsWith('.rpgmvo')) {
+     const nn=x.n.slice(0,-1)+"m";
+     if (!parent.x.has(nn)) await xxxx1(appid,parent,nn,fileid);
+    } else if (x.n.endsWith('.rpgmvm')) {
+     const nn=x.n.slice(0,-1)+"o";
+     if (!parent.x.has(nn)) await xxxx1(appid,parent,nn,fileid);
+    }
+    return r;
+   };
+   x.v=await xxxx0(appid,parent,x.n,fileid);
+  }
+ 
+  for (const f of ff) {
+   let p=f.name;
+   let isdir=false;
+   if (p.endsWith("/")) {
+    p=p.slice(0,-1);
+    isdir=true;
+   }
+   let r=root;
+   for (const n of p.split('/').slice(0,-1)) {
+    r=r.x.get(n);
+   }
+   const x=r.x.get(p.slice(p.lastIndexOf('/')+1));
+   console.assert(isdir ^ (x.i<0));
+   await insertToDB(r,x);
+  }
+ }
+
+ {
+  if (navigator.storage!=null&&navigator.storage.estimate) {
+   const xx=await navigator.storage.estimate();
+   if (xx.quota-xx.usage-zipfile.size < 0) throw new Error("Quota exceeded.")
+  }
+  const {pw,ff}=await openArchive(zipfile);
+  const {ds,fs,rx}=getFiles(ff);
+  const rr=await checkRoot(zipfile,ds,rx);
+  const db=await openDB(DB_NAME);
+  try {
+   const t=db.transaction(["a","b","d","f"],"readwrite");
+   const p=new Promise((rs,rj)=>{
+    t.oncomplete=()=>rs(rr);
+    t.onabort=()=>rj(new Error('aborted'));
+    t.onerror=()=>rj(t.error);
+   });
+   let signaled=false;
+   await run(t,ds,rr,pw,ff,zipfile,()=>{ signaled=true }).then(()=>t.commit(),e=>{ if (!signaled) { t.abort(); throw e } });
+   return await p;
+  } finally {
+   db.close();
+  }
+ }
+}
+
+
+
+const ET=document.querySelector('table');
+const EB=document.querySelector('button');
+
+function newItem(n) {
+ const tr0=ET.insertRow();
+ const td0=tr0.insertCell(); td0.innerText=n;
+ const td1=tr0.insertCell(); td1.appendChild(document.createElement('input')).type="file";
+ const td2=tr0.insertCell();
+ const b0=document.createElement("button");
+ b0.type="button";
+ b0.innerText="v";
+ td2.appendChild(b0);
+ const td3=tr0.insertCell();
+ const b1=document.createElement("button");
+ b1.type="button";
+ b1.innerHTML="...";
+ b1.classList.add("vn");
+ td3.appendChild(b1);
+ const tr1=ET.insertRow(); tr1.style.visibility="collapse";
+ const td4=tr1.insertCell(); td4.colSpan=4;
+ b0.addEventListener('click',e=>{
+  const b0=e.target;
+  const td2=e.target.parentElement
+  const n=td2.parentElement.firstElementChild.innerText;
+  const td1=td2.previousElementSibling;
+  const f=td1.firstElementChild.files[0];
+  const td4=td2.parentElement.nextElementSibling.firstElementChild;
+  if (f) {
+   b0.disabled=true;
+   newApp(n,f).then(r=>{
+    td2.innerHTML='';
+    const td1a=document.createElement('a');
+    td1a.href=`a/${encodeURI(n)}/${r}`;
+    td1a.innerText=r?r:"/";
+    td1.innerHTML='';
+    td1.appendChild(td1a);
+    const b0=document.createElement("button");
+    b0.type="button";
+    b0.innerText="\u2212";
+    td2.appendChild(b0);
+    addSaveArea(td4,n,[]);
+   }).finally(()=>{b0.disabled=false});
+  }
+ });
+ b1.addEventListener('click',e=>{
+  const x=e.target.parentElement.parentElement.nextElementSibling;
+  if (x.style.visibility==="collapse")
+   x.style.visibility="visible";
+  else
+   x.style.visibility="collapse";
+ });
+}
+
+function addItem(n,r,saves) {
+ const tr0=ET.insertRow();
+ const td0=tr0.insertCell(); td0.innerText=n;
+ const td1=tr0.insertCell();
+ const td1a=document.createElement('a');
+ td1a.href=`a/${encodeURI(n)}/${r}`;
+ td1a.innerText=r?r:"/";
+ td1.appendChild(td1a);
+ const td2=tr0.insertCell();
+ const b0=document.createElement("button");
+ b0.type="button";
+ b0.innerText="\u2212";
+ td2.appendChild(b0);
+ const td3=tr0.insertCell();
+ const b1=document.createElement("button");
+ b1.type="button";
+ b1.innerHTML="...";
+ b1.classList.add("vn");
+ td3.appendChild(b1);
+ const tr1=ET.insertRow(); tr1.style.visibility="collapse";
+ const td4=tr1.insertCell(); td4.colSpan=4; addSaveArea(td4,n,saves);
+ b1.addEventListener('click',e=>{
+  const x=e.target.parentElement.parentElement.nextElementSibling;
+  if (x.style.visibility==="collapse")
+   x.style.visibility="visible";
+  else
+   x.style.visibility="collapse";
+ });
+}
+
+function addSaveArea(container,name,saves) {
+ const table=document.createElement('table');
+ container.appendChild(table);
+ const tr0=table.insertRow(); tr0.innerHTML="<td colspan=2>Saves:";
+ const tr1=table.insertRow();
+ tr1.insertCell().innerText=""+saves.length+": "+saves;
+ const b0=document.createElement('button');
+ b0.type="button";
+ b0.innerText="0";
+ b0.addEventListener('click',()=>{downloadSave(name)});
+ tr1.insertCell().appendChild(b0);
+ const tr2=table.insertRow();
+ tr2.insertCell().appendChild(document.createElement('input')).type="file";
+ const b1=document.createElement('button');
+ b1.type="button";
+ b1.innerText="v";
+ b1.addEventListener('click',e=>{
+  let f=e.target.parentElement.previousElementSibling.firstElementChild.files[0];
+  if (f) uploadSave(name,f).then(saves=>{ const td0=e.target.parentElement.parentElement.previousElementSibling.firstElementChild.innerText=""+saves.length+": "+saves; });
+ });
+ tr2.insertCell().appendChild(b1);
+}
+
+async function uploadSave(name,file) {
+ let xx=JSON.parse(await file.text());
+ if (!(xx instanceof Array)) xx=Object.entries(xx);
+ const r={a:null,x:xx.map(([k,v])=>[""+k,""+v])};
+ if (confirm("Load: "+r.x.map(([k])=>k))) {
+  const db=await openDB(DB_NAME);
+  try {
+   const t=db.transaction(["a","s"],"readwrite");
+   let a=await dbReq(t.objectStore("a").index("n").getKey(name));
+   if (a==null) throw new Error("not found: "+n);
+   r.a=a;
+   await dbReq(t.objectStore("s").put(r));
+   alert("Loaded");
+   return r.x.map(([k,v])=>k);
+  } finally {
+   db.close();
+  }
+ }
+}
+
+function downloadSave(n) {
+ openDB(DB_NAME).then(db=>{
+  const t=db.transaction(["a","s"]);
+  db.close();
+  dbReq(t.objectStore("a").index("n").getKey(n)).then(a=>{
+   if (a==null) throw new Error("not found: "+n);
+   return dbReq(t.objectStore("s").get(a))
+  }).then(x=>{
+   if (x==null) return {}
+   else if (x.t!==1) {
+    if (!(x.x instanceof Array)) return x.x;
+    const r=Object.create(null);
+    for (const [k,v] of x.x) r[k]=v;
+    return r;
+   } else {
+    const r=Object.create(null);
+    for (const [k,v] of x.x) {
+     r[k]=btoa(Array.prototype.map.call(new Uint8Array(v),x=>String.fromCharCode(x)).join(""));
+    }
+    return r;
+   }
+  }).then(r=>{
+   const b=new Blob([JSON.stringify(r)],{type:"application/json"});
+   const u=URL.createObjectURL(b);
+   const a=document.createElement('a');
+   a.download=n+"_saves.json";
+   a.target="_blank";
+   a.href=u;
+   a.click();
+  });
+ })
+}
+
+navigator.serviceWorker.register('sw.js');
+
+openDB2().then(()=>{
+ return openDB(DB_NAME).then(db=>{
+  const t=db.transaction(["a","s"]);
+  const ta=t.objectStore("a");
+  const ts=t.objectStore("s");
+  const p=new Promise((rs,rj)=>{
+   t.oncomplete=()=>rs(void 0);
+   t.onabort=()=>rj(new Error('aborted'));
+   t.onerror=()=>rj(t.error);
+  });
+  (async ()=>{
+   const r=await dbReq(ta.getAll());
+   Promise.all(r.map(a=>dbReq(ts.get(a.i)).then(s=>{
+     let xx;
+     if (s!=null) {
+      xx=s.x;
+      if (xx instanceof Array) xx=xx.map(x=>x[0]);
+      else xx=Object.getOwnPropertyNames(xx);
+     } else {
+      xx=[];
+     }
+     addItem(a.n,a.p,xx);
+   }))).then(()=>t.commit());
+  })();
+  return p.finally(()=>db.close())
+ })
+}).then(()=>{
+ EB.addEventListener('click',e=>{
+  const n=prompt();
+  if (n!=void 0) newItem(n);
+ });
+});
+})()</script>
