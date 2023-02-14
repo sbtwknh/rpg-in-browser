@@ -295,7 +295,7 @@ async function newApp(name,zipfile) {
  {
   if (navigator.storage!=null&&navigator.storage.estimate) {
    const xx=await navigator.storage.estimate();
-   if (xx.quota-xx.usage-zipfile.size < 0) throw new Error("Quota exceeded.")
+   if (xx.quota-xx.usage-zipfile.size < 0) throw new Error("Quota exceeded."+` (${xx.usage}+${zipfile.size})/${xx.quota}`)
   }
   const {pw,ff}=await openArchive(zipfile);
   const {ds,fs,rx}=getFiles(ff);
