@@ -4,6 +4,10 @@ function escapeHTML(x) {
  return x.replace(/[<&]/g,x=>x==="&"?"&amp;":"&lt;")
 }
 
+function escapeHTML2(x) {
+ return x.replace(/["&]/g,x=>x==="&"?"&amp;":"&quot;")
+}
+
 function arrayBuffer(s) {
  s=unescape(encodeURIComponent(s));
  const x=new Uint8Array(s.length);
@@ -60,44 +64,36 @@ function emptyResponse(n) {
   return new Response(null)
 }
 
-function php(s,req,name,path1,path2) {
+function php(s,req,name,path1,path2,password) {
  const base0=new URL(registration.scope).pathname;
  const xs_saves=`${base0}s/${encodeURI(name)}/saves.js`;
- return s.replace("<?=INJECT?>",`<script src="${xs_saves}"></script>`)
+ const xs_pw=`${base0}s/${encodeURI(name)}/pw.js`;
+ return s.replace("<?=INJECT?>",`<script>window.__p=${JSON.stringify(password)};document.currentScript.remove()</script><script src="${xs_pw}"></script><script src="${xs_saves}"></script>`)
 }
 
 async function getCache(x) {
  return await caches.match(x) || emptyResponse(404)
 }
 
-async function getResponseA_x(cid,req,db,apath,password,use_default=true,list_dir=true) {
- apath=stringPartition(apath,"#")[0];
- apath=stringPartition(apath,"?")[0];
- const [name,,path]=stringPartition(apath,"/");
- const path1=path.split("/").map(x=>{try{return decodeURIComponent(x)}catch{return x}});
- const path2=path1.pop();
- if (req.method==="POST") {
-  let xx;
-  if (cid!=="") return emptyResponse(405);
-  console.assert(req.mode==="navigate");
-  try {
-   xx=[...(await req.formData()).entries()].filter(([k,v])=>k.startsWith('password')&&k.length>8&&(k.slice(8)|0)==k.slice(8)).map(([k,v])=>[k.slice(8)|0,v]);
-  } catch {
-  }
-  if (xx) xx.forEach(([k,v])=>pwMap.set(k|0,v));
-  return new Response(null,{status:303,headers:{"location":req.url}});
- }
- if (password==null && cid==="") {
-  const xx=await dbReq(db.transaction(["a"]).objectStore("a").index("n").get(name));
-  if (xx && xx.e) {
+async function getResponseA_y(cid,req,db,apath,use_default,list_dir,name) {
+ if (cid==="") {
    console.assert(req.mode==="navigate");
-   const t=db.transaction(["a","b"])
+   const t=db.transaction(["a","b"]);
    const aid=await dbReq(t.objectStore("a").index("n").getKey(name));
    const bl=await dbReq(t.objectStore("b").index("a").getAll(aid));
-   const bl1=bl.filter(x=>!pwMap.has(x.i)).map(x=>[x.i,x.n]);
-   if (bl1.length) {
+   const bl2=[];
+   const bl1=[];
+   bl.forEach(x=>{
+    const r=pwCacheB.has(x.i);
+    if (r)
+     bl2.push([x.i,pwCacheB.get(x.i)]);
+    else
+     bl1.push([x.i,x.n])
+   });
+   const xx=bl2.map(([k,v])=>`<input type=hidden name=password${k} value="${escapeHTML2(v)}" />`).join("");
+   if (1) {
     return new Response(S.r2`
-      <!DOCTYPE html><title>Password required</title><body><form method=post></form><script>
+      <!DOCTYPE html><title>Password required</title><body><form method=post>${xx}</form><script>
       ${JSON.stringify(bl1)}.forEach(([i,n])=>{
        let v=prompt("Password required"+"\n"+n);
        if (v==null) return;
@@ -110,6 +106,46 @@ async function getResponseA_x(cid,req,db,apath,password,use_default=true,list_di
       document.querySelector('form').submit();
       </script>`,{status:403,headers:{"content-type":"text/html;charset=utf-8"}});
    }
+ } else {
+  const c=await clients.get(cid);
+  if (c==null) return emptyResponse(403);
+  const r=await new Promise(rs=>{
+   clientCall(c,"pw").then(x=>rs(x.data.r));
+   setTimeout(()=>rs({}),200)
+  });
+  return await getResponseA_x(cid,req,db,apath,r,use_default,list_dir)
+ }
+}
+async function getResponseA_x(cid,req,db,apath,password,use_default=true,list_dir=true) {
+ const [name,,path]=stringPartition(stringPartition(stringPartition(apath,"#")[0],"?")[0],"/");
+ const path1=path.split("/").map(x=>{try{return decodeURIComponent(x)}catch{return x}});
+ const path2=path1.pop();
+ if (req.method==="POST") {
+  let xx;
+  if (cid!=="") return emptyResponse(405);
+  console.assert(req.mode==="navigate");
+  try {
+   xx=[...(await req.formData()).entries()].filter(([k,v])=>k.startsWith('password')&&k.length>8&&(k.slice(8)|0)==k.slice(8)).map(([k,v])=>[k.slice(8)|0,v]);
+  } catch {
+  }
+  if (xx) {
+   const t=db.transaction(["a","b"]);
+   const aid=await dbReq(t.objectStore("a").index("n").getKey(name));
+   if (aid!=null) {
+    const bl=await dbReq(t.objectStore("b").index("a").getAll(aid));
+    const pp=Object.fromEntries(xx);
+    if (bl.every(x=>pp.hasOwnProperty(x.i))) {
+     pwCacheA.set(aid,pp);
+     xx.forEach(([k,v])=>pwCacheB.set(k|0,v));
+    }
+   }
+  }
+  return new Response(null,{status:303,headers:{"location":req.url}});
+ }
+ if (password==null && cid==="") {
+  const xx=await dbReq(db.transaction(["a"]).objectStore("a").index("n").get(name));
+  if (xx && xx.e && !pwCacheA.has(xx.i)) {
+   return await getResponseA_y(cid,req,db,apath,use_default,list_dir,name);
   }
  }
  const t=db.transaction(["a","b","d","f"]);
@@ -119,9 +155,11 @@ async function getResponseA_x(cid,req,db,apath,password,use_default=true,list_di
  const tf=t.objectStore("f");
  let r;
  let x0;
+ let xa;
  x0=await dbReq(ta.index("n").get(name));
  xxxx:
  if (x0!=null) {
+  xa=x0.i;
   x0=x0.r;
   for (const p of path1) {
    x0=await dbReq(td.index("p").getKey([x0,p]));
@@ -190,10 +228,15 @@ async function getResponseA_x(cid,req,db,apath,password,use_default=true,list_di
   t.commit();
   if (xx.e) {
    let pw=password!=null?password[r1]:void 0;
-   if (pw==null && pwMap.has(r1)) { pw=pwMap.get(r1) }
-   if (pw==null) return emptyResponse(403);
+   if (pw==null && pwCacheB.has(r1)) { pw=pwCacheB.get(r1) }
+   if (pw==null) {
+    if (password==null)
+     return await getResponseA_y(cid,req,db,apath,use_default,list_dir,name);
+    else
+     return emptyResponse(403);
+   }
    const x1=`${xx.e.iterations}:${Array.prototype.join.call(xx.e.salt,",")}:${pw}`;
-   if (!pwMap2.has(x1)) {
+   if (!kkCache.has(x1)) {
     try {
      const pw1=Uint8Array.from(unescape(encodeURIComponent(pw)),x=>x.charCodeAt(0));
      const kk0=await crypto.subtle.importKey('raw',pw1,'PBKDF2',false,['deriveKey']);
@@ -203,13 +246,13 @@ async function getResponseA_x(cid,req,db,apath,password,use_default=true,list_di
      return emptyResponse(403);
     }
     try {
-     pwMap2.set(x1,await crypto.subtle.exportKey('raw',kk))
+     kkCache.set(x1,await crypto.subtle.exportKey('raw',kk))
     } catch (e) {
      console.error(e);
     }
    } else {
     try {
-     kk=await crypto.subtle.importKey('raw',pwMap2.get(x1),{name:'AES-GCM',length:256},false,['decrypt']);
+     kk=await crypto.subtle.importKey('raw',kkCache.get(x1),{name:'AES-GCM',length:256},false,['decrypt']);
     } catch (e) {
      console.error(e);
      return emptyResponse(500);
@@ -246,7 +289,9 @@ async function getResponseA_x(cid,req,db,apath,password,use_default=true,list_di
    r1=await crypto.subtle.decrypt({name:'AES-GCM',iv:xx0,additionalData:Uint8Array.of(0xaf,0xb4,0xfe,0xfd),tagLength:r.e2*8},kk,xx1);
   } catch (e) {
    console.error(e);
-   pwMap.clear();
+   pwCacheB.clear();
+   pwCacheA.clear();
+   kkCache.clear();
    return emptyResponse(403);
   }
   if (r.c0==null) {
@@ -286,7 +331,7 @@ async function getResponseA_x(cid,req,db,apath,password,use_default=true,list_di
  } else if (r1==="") {
   return emptyResponse();
  } else if (typeof r1==="string") {
-  return new Response(arrayBuffer(php(r1,req,name,path1,path2)));
+  return new Response(arrayBuffer(php(r1,req,name,path1,path2,cid===""?pwCacheA.get(xa):null)));
  } else {
   console.warn("b",name,path,Object.prototype.toString.call(r1));
   return emptyResponse(500);
@@ -471,6 +516,24 @@ async function getResponseS_saves(req,name) {
    `,{headers:{"content-type":"text/javascript;charset=utf-8"}});
 }
 
+async function getResponseS_pw(req,name) {
+ return new Response(S.r2`
+   (function(){"use strict";
+   document.currentScript.remove();
+   const PW=window.__p||{}; delete window.__p;
+   const CONTROLLER=navigator.serviceWorker.controller;
+   navigator.serviceWorker.addEventListener('message',e=>{
+    if (e.source===CONTROLLER) {
+     if (e.data.m==="pw") {
+      CONTROLLER.postMessage({q:false,i:e.data.i,r:PW});
+     }
+    }
+   });
+   navigator.serviceWorker.startMessages();
+   })()
+   `,{headers:{"content-type":"text/javascript;charset=utf-8"}});
+}
+
 async function getResponseS(req,cid,cid2,url) {
  if (req.method!="GET") return emptyResponse(405);
  let r;
@@ -478,6 +541,8 @@ async function getResponseS(req,cid,cid2,url) {
   const [name,,path]=stringPartition(url,"/");
   if (path==="saves.js")
    r=await getResponseS_saves(req,name);
+  else if (path==="pw.js")
+   r=await getResponseS_pw(req,name);
  }
  if (r===void 0) return new Response("document.currentScript.remove()",{headers:{"content-type":"text/javascript;charset=utf-8"}});
  else return r;
@@ -493,11 +558,12 @@ function genRandomStr() {
 function clientCall(c,m) {return new Promise(rs=>{
  let i=MESSAGE_PREFIX+(++MESSAGE_ID);
  msgMap.set(i,rs);
- c.postMessage({i,m})
+ c.postMessage({q:true,i,m})
 })}
 
-const pwMap=new Map();
-const pwMap2=new Map();
+const pwCacheA=new Map();
+const pwCacheB=new Map();
+const kkCache=new Map();
 const msgMap=new Map();
 const MESSAGE_PREFIX=genRandomStr()+":";
 let MESSAGE_ID=0;
@@ -514,7 +580,7 @@ self.onactivate=e=>{
 };
 
 self.onmessage=e=>{
- if (msgMap.has(e.data!=null?e.data.i:void 0)) {
+ if ((e.data!=null?e.data.q:void 0)===false && msgMap.has(e.data!=null?e.data.i:void 0)) {
   let p=msgMap.get(e.data.i);
   msgMap.delete(e.data.i);
   p(e);
