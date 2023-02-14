@@ -97,8 +97,8 @@ async function newApp(name,zipfile) {
     x.then(x=>rs(x),x=>(--n)||rj('format'));
    })
   });
-  const pw=await x1.getKI();
-  if (pw) await x1.setPW(prompt("Password required"));
+  const pw={pw:null,ki:await x1.getKI()};
+  if (pw.ki) await x1.setPW(pw.pw=prompt("Password required"));
   const ff=await x1.getCD();
   return {pw,ff}
  }
@@ -147,7 +147,30 @@ async function newApp(name,zipfile) {
   return new Blob(bs);
  }
 
- async function checkRoot(zipfile,ds,rx) {
+ async function extractFile(xx,pw) {
+  let bb;
+  if (xx.x.e===1&&pw.ki!=null&&pw.pw!=null) {
+   bb=zipfile.slice(xx.x.o,xx.x.o+xx.x.e1+xx.x.s+xx.x.e2);
+   const k0=Uint8Array.from(unescape(encodeURIComponent(pw.pw)),x=>x.charCodeAt(0));
+   const k1=await crypto.subtle.importKey('raw',k0,'PBKDF2',false,['deriveKey']);
+   const kk=await crypto.subtle.deriveKey({name:'PBKDF2',hash:'SHA-256',salt:pw.ki.salt,iterations:pw.ki.iterations},k1,{name:'AES-GCM',length:256},true,['decrypt']);
+   const b0=await bb.arrayBuffer();
+   const b1=await crypto.subtle.decrypt({name:'AES-GCM',iv:new Uint8Array(b0,0,xx.x.e1),additionalData:Uint8Array.of(0xaf,0xb4,0xfe,0xfd),tagLength:xx.x.e2*8},kk,new Uint8Array(b0,xx.x.e1));
+   if (xx.x.m===1) {
+    const x0=Uint32Array.of(xx.x.crc32,xx.x.size);
+    bb=await blob(new ReadableStream({start(x){x.enqueue(Uint8Array.of(0x1f,0x8b,8,0,0,0,0,0,0,0));x.enqueue(b1);x.enqueue(x0);x.close()}}).pipeThrough(new DecompressionStream("gzip")));
+   } else {
+    bb=new Blob([b1]);
+   }
+  } else {
+   if (xx.x.m===1) {
+    bb=await blob(new Blob([Uint8Array.of(0x1f,0x8b,8,0,0,0,0,0,0,0),zipfile.slice(xx.x.o,xx.x.o+xx.x.s),Uint32Array.of(xx.x.crc32,xx.x.size)]).stream().pipeThrough(new DecompressionStream("gzip")));
+   }
+  }
+  return bb
+ }
+
+ async function checkRoot(zipfile,ds,rx,pw) {
   let xx=rx,xx1="";
   while (xx.u!==null) {
    xx1=(xx.n+"/")+xx1;
@@ -158,12 +181,8 @@ async function newApp(name,zipfile) {
   xx=rx.x.get("package.json");
   if (xx.i>=0)
    return "";
-  let bb=zipfile.slice(xx.x.o,xx.x.o+xx.x.s);
-  if (xx.x.m===1) {
-   bb=await blob(new Blob([Uint8Array.of(0x1f,0x8b,8,0,0,0,0,0,0,0),bb,Uint32Array.of(xx.x.crc32,xx.x.size)]).stream().pipeThrough(new DecompressionStream("gzip")));
-  }
   try {
-   xx=JSON.parse(await bb.text())
+   xx=JSON.parse(await (await extractFile(xx,pw)).text())
   } catch (e) {
    return "";
   }
@@ -177,11 +196,7 @@ async function newApp(name,zipfile) {
    return "";
   if (xx.x.s>1048576)
    return "";
-  bb=zipfile.slice(xx.x.o,xx.x.o+xx.x.s);
-  if (xx.x.m===1) {
-   bb=await blob(new Blob([Uint8Array.of(0x1f,0x8b,8,0,0,0,0,0,0,0),bb,Uint32Array.of(xx.x.crc32,xx.x.size)]).stream().pipeThrough(new DecompressionStream("gzip")));
-  }
-  bb=await bb.text()
+  let bb=await (await extractFile(xx,pw)).text();
   if (!bb.startsWith("<!DOCTYPE") || bb.indexOf("\ufffd")>=0)
    return "";
   xx.x=bb.replace(/(?<=<head>)/,"<?=INJECT?>");
@@ -206,10 +221,10 @@ async function newApp(name,zipfile) {
    throw new Error('duplicate: '+name);
   }
 
-  const appid=await dbReq2(signal,ta.add({n:name,r:null,p:rr,e:!!pw}));
-  const blobid=await dbReq2(signal,tb.add({a:appid,x:zipfile.slice(),e:pw,n:zipfile.name})); // XXX:
+  const appid=await dbReq2(signal,ta.add({n:name,r:null,p:rr,e:!!pw.ki}));
+  const blobid=await dbReq2(signal,tb.add({a:appid,x:zipfile.slice(),e:pw.ki,n:zipfile.name})); // XXX:
   root.v=await dbReq2(signal,td.add({a:appid,p:null,n:null,x:null}));
-  await dbReq2(signal,ta.put({i:appid,n:name,s:"",r:root.v,p:rr,e:!!pw}))
+  await dbReq2(signal,ta.put({i:appid,n:name,s:"",r:root.v,p:rr,e:!!pw.ki}))
 
   async function insertToDB(parent,x) {
    if (x.v!==null) return;
@@ -284,7 +299,7 @@ async function newApp(name,zipfile) {
   }
   const {pw,ff}=await openArchive(zipfile);
   const {ds,fs,rx}=getFiles(ff);
-  const rr=await checkRoot(zipfile,ds,rx);
+  const rr=await checkRoot(zipfile,ds,rx,pw);
   const db=await openDB(DB_NAME);
   try {
    const t=db.transaction(["a","b","d","f"],"readwrite");
