@@ -3,7 +3,7 @@ class NotZip {
  #cd;
  #k;
  #k_x;
- async #readH() {
+ async _readH() {
   const o=0;
   const h=new Uint8Array(await this.#f.slice(o+0,o+28+544).arrayBuffer());
   const size=(h[8]|h[9]<<8|h[10]<<16|h[11]<<24)>>>0;
@@ -31,7 +31,7 @@ class NotZip {
   }
   return {x,s:p};
  }
- async #readCD(x,o0) {
+ async _readCD(x,o0) {
   let o=0;
   let p=0;
   const xx=new Uint8Array(x);
@@ -98,8 +98,8 @@ class NotZip {
  async getCD() {
   if (this.#cd!==null) return this.#cd;
   this.#cd=[];
-  let {x,s:o}=await this.#readH();
-  await this.#readCD(x,o);
+  let {x,s:o}=await this._readH();
+  await this._readCD(x,o);
   return this.#cd;
  }
 }

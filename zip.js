@@ -218,7 +218,7 @@ class Zip {
   this.#ecd=null;
   this.#cd=null;
  }
- async #tryOpen() {
+ async _tryOpen() {
   this.#v=false;
   const n=await findECD(this.#f);
   if (n<0) return;
@@ -229,7 +229,7 @@ class Zip {
  }
  async mayOpen() {
   if (!(this.#f instanceof Blob)) return false;
-  if (this.#v===null) await this.#tryOpen();
+  if (this.#v===null) await this._tryOpen();
   return this.#v
  }
  async getKI() {
