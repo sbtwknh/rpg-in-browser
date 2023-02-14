@@ -90,7 +90,13 @@ function openDB2() {return new Promise((rs,rj)=>{
 async function newApp(name,zipfile) {
  async function openArchive(f) {
   const x0=(window.AP||[]).map(x=>new x(f));
-  const x1=await Promise.any(x0.map(async (x)=>await x.mayOpen()?x:Promise.reject(x)));
+  const x2=x0.map(async (x)=>await x.mayOpen()?x:Promise.reject(x));
+  const x1=await new Promise((rs,rj)=>{
+   let n=x2.length;
+   x2.forEach(x=>{
+    x.then(x=>rs(x),x=>(--n)||rj('format'));
+   })
+  });
   const pw=await x1.getKI();
   if (pw) await x1.setPW(prompt("Password required"));
   const ff=await x1.getCD();
